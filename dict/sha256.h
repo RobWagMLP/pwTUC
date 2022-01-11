@@ -8,9 +8,9 @@
 
 using namespace std;
 
-uint32_t* sha256(string input, uint32_t (&fill)[8]);
-bool compareSha(string input, uint32_t (&pwNrs)[8]);
-string shaString(string input);
+uint32_t* sha256(uint8_t *input, uint32_t length, uint32_t (&fill)[8]);
+bool compareSha(uint8_t *input, uint32_t length, uint32_t (&pwNrs)[8]);
+string shaString(uint8_t *input, int length);
 uint32_t Frot(uint32_t B, uint32_t x, uint32_t y, uint32_t z);
 uint32_t Grot(uint32_t B, uint32_t x, uint32_t y, uint32_t z);
 uint32_t validateFunc(size_t round, uint32_t B, uint32_t C, uint32_t D);

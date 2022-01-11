@@ -1,16 +1,16 @@
 #include <sha256.h>
 
-bool compareSha(string input, uint32_t (&pwNrs)[8]) {
+bool compareSha(uint8_t *input, uint32_t length, uint32_t (&pwNrs)[8]) {
     uint32_t sha[8] = {};
-    sha256(input, sha);
+    sha256(input, length, sha);
     //cout << sha[0] <<"\n";
     return sha[0] == pwNrs[0] && sha[1] == pwNrs[1] && sha[2] == pwNrs[2] && sha[3] == pwNrs[3] &&
            sha[4] == pwNrs[4] && sha[5] == pwNrs[5] && sha[6] == pwNrs[6] && sha[7] == pwNrs[7] ;
 }
 
-string shaString(string input) {
+string shaString(uint8_t *input, int length) {
     uint32_t sha[8] = {};
-    sha256(input, sha);
+    sha256(input, length, sha);
     stringstream result;
     result << std::setfill ('0') << std::setw(sizeof(uint32_t)*2)  << std::hex << sha[0]
            << std::setfill ('0') << std::setw(sizeof(uint32_t)*2)  << std::hex << sha[1]
@@ -23,7 +23,7 @@ string shaString(string input) {
     return result.str();
 }
 
-uint32_t* sha256(string input, uint32_t (&fill)[8]) {
+uint32_t* sha256(uint8_t *input, uint32_t inpLength, uint32_t (&fill)[8]) {
 
     //def init vecs
     uint32_t cA = 0x6a09e667;
@@ -35,24 +35,31 @@ uint32_t* sha256(string input, uint32_t (&fill)[8]) {
     uint32_t cG = 0x1f83d9ab;
     uint32_t cH = 0x5be0cd19;
 
-    std::stringstream bitstring;
-    // convert string to binary
-    for(size_t i = 0; i < input.length(); i++) {
-        bitstring << bitset<8> (input[i]);
-    }
-    size_t length = bitstring.str().length();
+    size_t length = 8*inpLength;
     //fill up to multiple of 512
-    int dif = (448 - length%448) - 1;
-    bitstring << '1';
-    for (int c = 0; c < dif; c++) {
-        bitstring << '0';
+    // since we want to crack passwords, it doesnt make sense to take care of cases with length of multiples of 512, We couldnt crack that anyways and so we can safe some performance
+    uint64_t dif = ((448 - length%448)/8) - 1;
+    int bitLength = 512/8;
+    uint8_t *bits = new uint8_t[bitLength]{0};
+    for(size_t i = 0; i < inpLength; i++) {
+        bits[i] = input[i];
     }
+    bits[inpLength] = 128;
 
-    bitstring << bitset<64> (length );
-    string bits = bitstring.str();
+    for(size_t i =0; i < dif; i++) {
+        bits[i+1+inpLength] = 0;
+    }
+    uint32_t charLength = 8*inpLength;
+
+    //add length as 4*8Bit integer
+    bits[bitLength - 4] = (charLength >> 24) & 0xff;
+    bits[bitLength - 3] = (charLength >> 16) & 0xff;
+    bits[bitLength - 2] = (charLength >>  8) & 0xff;
+    bits[bitLength - 1] = (charLength      ) & 0xff;
+
     //iterate over blocks
 
-    for (size_t block = 0; block < bits.length(); block = block + 512) {
+    for (size_t block = 0; block < bitLength; block = block + 512) {
         uint32_t A = cA;
         uint32_t B = cB;
         uint32_t C = cC;
@@ -67,11 +74,7 @@ uint32_t* sha256(string input, uint32_t (&fill)[8]) {
         //split bit 512 bit blocks into 16 32-bit numbers
         uint32_t m[64] = {};
         for(size_t mI = 0; mI < 16; mI++) {
-            stringstream collect;
-            for(size_t vI = 0; vI < 32; vI++) {
-                collect << bits[(vI + 32*mI)];
-            }
-            m[mI] = static_cast<uint32_t>(stoul(collect.str(), nullptr, 2) );
+            m[mI] = (((uint32_t) bits[4*mI]) << 24) + (((uint32_t) bits[4*mI + 1]) << 16) + (((uint32_t) bits[4*mI + 2]) << 8) + ((uint32_t) bits[4*mI +3]);
         }
         for(size_t vN = 16;  vN < 64; vN++) {
             uint32_t s0 = Frot(m[vN - 15], 7, 18, 3);
@@ -88,6 +91,7 @@ uint32_t* sha256(string input, uint32_t (&fill)[8]) {
         cE = (cE + E)&maxBits; cF = (cF + F)&maxBits; cG = (cG + G)&maxBits; cH = (cH + H)&maxBits;
     }
     fill[0] = cA; fill[1] = cB; fill[2] = cC; fill[3] = cD; fill[4] = cE; fill[5] = cF; fill[6] = cG; fill[7] = cH;
+    delete[] bits;
 }
 
 uint32_t rightRotate(uint32_t n, uint32_t d) {

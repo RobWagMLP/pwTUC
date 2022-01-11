@@ -13,7 +13,7 @@ int getCharsetLength(uint8_t charset);
 
 const uint8_t* getResolver(uint8_t charset);
 
-string password = "1f40bc4d52a194a5faa71e00707cbafdcc94b98bb899f1cb5b6f10b51acd9623";
+string password = "3ee8e7b83ba29a7f3079ff4fb0cdeca62d6e21acfe5466b8dc0b254c714c0a0d";
 
 int main(int argc, char** argv)
 {
@@ -28,6 +28,7 @@ int main(int argc, char** argv)
             password = argv[i+1];
         }
     }
+
     generate((uint8_t) charset, (uint8_t) wordlength);
 }
 
@@ -64,12 +65,16 @@ void generate(uint8_t charset, uint8_t length) {
         currentIndex = length - 1;
 
         //check password
-        stringstream str;
+        uint8_t *chars = new uint8_t[length]{0};
         for(int i = 0; i < length ; i++) {
-             str << resolver[values[i] ];
+             chars[i] = resolver[values[i] ];
         }
-        if(compareSha(str.str(), hashNr ) == true) {
-            cout <<"Found! Password is: " << str.str() << "\n";
+        if(compareSha(chars,length, hashNr ) == true) {
+            cout <<"Found! Password is: ";
+            for(size_t i = 0; i < length; i++) {
+                cout << chars[i];
+            }
+            cout << "\n";
             cout <<"Done in " << (std::time(0) - time) << " seconds";
             return;
         }
@@ -77,6 +82,7 @@ void generate(uint8_t charset, uint8_t length) {
             cout << "current letter: " << resolver[values[0]] <<" \n";
             currenstart = values[0];
         }
+        delete[] chars;
     }
     cout << "Done, generated " << iterations << " entrys.\n";
     delete[] values;
